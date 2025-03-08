@@ -7,11 +7,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Debug prints
-print("Environment variables loaded:")
-print(f"BEARER_TOKEN exists: {'BEARER_TOKEN' in os.environ}")
-print(f"CLIENT_API_ID exists: {'CLIENT_API_ID' in os.environ}")
-print(f"EXTERNAL_ID exists: {'EXTERNAL_ID' in os.environ}")
-print(f"PAYER_ACCOUNTS exists: {'PAYER_ACCOUNTS' in os.environ}")
+print("\n=== Environment Variables Debug ===")
+print(f"BEARER_TOKEN: {'[SET]' if os.getenv('BEARER_TOKEN') else '[NOT SET]'}")
+print(f"CLIENT_API_ID: {'[SET]' if os.getenv('CLIENT_API_ID') else '[NOT SET]'}")
+print(f"EXTERNAL_ID: {'[SET]' if os.getenv('EXTERNAL_ID') else '[NOT SET]'}")
+print(f"PAYER_ACCOUNTS: {'[SET]' if os.getenv('PAYER_ACCOUNTS') else '[NOT SET]'}")
+print(f"ROLE_TEMPLATE: {os.getenv('ROLE_TEMPLATE', '[using default]')}")
+print(f"ROLE_NAME: {os.getenv('ROLE_NAME', '[using default]')}")
+print("================================\n")
 
 # Load sensitive information from environment variables
 BEARER_TOKEN = os.getenv("BEARER_TOKEN", "")
@@ -52,8 +55,10 @@ def get_all_accounts(bearer_token, client_api_id):
     
     unique_accounts = {
         (account.get('owner_id'), account.get('id'), account.get('name'))
-        for account in all_accounts if not account.get('billing', {}).get('is_consolidated', False)
-    }  # Use set to ensure uniqueness
+        for account in all_accounts
+        if not account.get('billing', {}).get('is_consolidated', False)
+        and account.get('status', {}).get('level', '').lower() == 'unknown'
+    } # Use set to ensure uniqueness
     
     print([acc[0] for acc in unique_accounts])  # Print only unique owner IDs
     print(f"Total unique accounts retrieved: {len(unique_accounts)}")
@@ -104,7 +109,7 @@ if __name__ == "__main__":
         exit(1)
     
     accounts = get_all_accounts(BEARER_TOKEN, CLIENT_API_ID)
-    if accounts:
-        put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts)
-    else:
-        print("No accounts retrieved. Exiting.")
+    # if accounts:
+    #     put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts)
+    # else:
+    #     print("No accounts retrieved. Exiting.")
