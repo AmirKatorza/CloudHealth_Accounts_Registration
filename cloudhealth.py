@@ -109,7 +109,7 @@ if __name__ == "__main__":
         exit(1)
     
     accounts = get_all_accounts(BEARER_TOKEN, CLIENT_API_ID)
-    # if accounts:
-    #     put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts)
-    # else:
-    #     print("No accounts retrieved. Exiting.")
+    if accounts:
+        put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts)
+    else:
+        print("No accounts retrieved. Exiting.")
