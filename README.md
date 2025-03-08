@@ -1,6 +1,15 @@
 # CloudHealth AWS Account Configuration Tool
 
-This tool automates the process of configuring AWS accounts in CloudHealth by setting up IAM roles and authentication for multiple accounts.
+This tool automates the process of configuring AWS accounts in CloudHealth by setting up IAM roles and authentication for multiple accounts. It provides an interactive menu to either process all accounts or focus on problematic accounts that need attention.
+
+## Features
+
+- Interactive menu for choosing processing options
+- Automatic pagination for handling large numbers of accounts
+- Filtering options for targeting specific account statuses
+- Automatic exclusion of consolidated billing accounts
+- Detailed output and progress tracking
+- Error handling and retry options
 
 ## Prerequisites
 
@@ -66,18 +75,42 @@ source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
 python cloudhealth.py
 ```
 
+3. Choose your processing option from the interactive menu:
+   - Option 1: Process all accounts (excluding consolidated billing accounts)
+   - Option 2: Process only accounts with status 'UNKNOWN' or 'RED' (excluding consolidated billing accounts)
+
+### Processing Options
+
+#### Option 1: All Accounts
+- Processes all AWS accounts in CloudHealth
+- Automatically excludes consolidated billing accounts
+- Configures IAM roles for remaining accounts
+
+#### Option 2: Filtered Accounts
+- Only processes accounts with status 'UNKNOWN' or 'RED'
+- Automatically excludes consolidated billing accounts
+- Useful for focusing on problematic accounts that need attention
+
+### Script Behavior
+
 The script will:
-1. Retrieve all AWS accounts associated with your CloudHealth instance
-2. Filter out consolidated billing accounts and accounts that are already configured
-3. Configure each remaining account with the specified IAM role
+1. Load and validate environment variables
+2. Present an interactive menu for processing options
+3. Retrieve and filter accounts based on your selection
+4. Show the number of accounts that will be processed
+5. Configure IAM roles for the selected accounts
+6. Provide detailed output for each account processed
+7. Offer the option to run additional processing cycles
 
 ## Output
 
 The script provides detailed output including:
-- Environment variable status
-- List of accounts being processed
+- Environment variable status at startup
+- Number of accounts matching selected criteria
+- List of account IDs to be processed
 - Configuration status for each account
 - Any errors that occur during processing
+- Option to run additional processing cycles
 
 ## Troubleshooting
 
@@ -94,6 +127,12 @@ The script provides detailed output including:
 3. If accounts are skipped:
    - Check if they are in the PAYER_ACCOUNTS list
    - Verify their status in CloudHealth console
+   - Confirm if they are consolidated billing accounts (these are always skipped)
+
+4. If no accounts are found:
+   - When using Option 2, verify that accounts have the correct status (UNKNOWN or RED)
+   - Confirm that the accounts are not consolidated billing accounts
+   - Check the CloudHealth console for account status
 
 ## Security Notes
 

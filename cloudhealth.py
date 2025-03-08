@@ -24,8 +24,14 @@ PAYER_ACCOUNTS = os.getenv("PAYER_ACCOUNTS", "").split(",") if os.getenv("PAYER_
 ROLE_TEMPLATE = os.getenv("ROLE_TEMPLATE", "arn:aws:iam::{owner_id}:role/{role_name}")
 ROLE_NAME = os.getenv("ROLE_NAME", "CLDZE-CloudHealth_Role")
 
-def get_all_accounts(bearer_token, client_api_id):
-    """Retrieves all AWS accounts for the given client API ID, handling pagination."""
+def get_all_accounts(bearer_token, client_api_id, filter_status=False):
+    """Retrieves AWS accounts for the given client API ID, handling pagination.
+    
+    Args:
+        bearer_token (str): CloudHealth API bearer token
+        client_api_id (str): Client API ID
+        filter_status (bool): If True, only return accounts with 'unknown' or 'red' status
+    """
     url = f'https://chapi.cloudhealthtech.com/v1/aws_accounts?client_api_id={client_api_id}'
     headers = {
         'Content-Type': 'application/json',
@@ -34,11 +40,11 @@ def get_all_accounts(bearer_token, client_api_id):
     }
     
     all_accounts = []
-    page = 1  # Start with the first page
+    page = 1
     
     while True:
         try:
-            response = requests.get(f"{url}&page={page}", headers=headers)  # Add pagination
+            response = requests.get(f"{url}&page={page}", headers=headers)
             response.raise_for_status()
         except requests.RequestException as e:
             print(f"Error fetching accounts: {e}")
@@ -47,23 +53,39 @@ def get_all_accounts(bearer_token, client_api_id):
         data = response.json()
         accounts = data.get('aws_accounts', [])
 
-        if not accounts:  # If there are no more accounts, break the loop
+        if not accounts:
             break
         
-        all_accounts.extend(accounts)  # Append the accounts from this page
-        page += 1  # Move to the next page
+        all_accounts.extend(accounts)
+        page += 1
     
-    unique_accounts = {
-        (account.get('owner_id'), account.get('id'), account.get('name'))
-        for account in all_accounts
-        if not account.get('billing', {}).get('is_consolidated', False)
-        and account.get('status', {}).get('level', '').lower() == 'unknown'
-    } # Use set to ensure uniqueness
+    # Filter accounts based on criteria
+    filtered_accounts = []
+    for account in all_accounts:
+        # Skip consolidated billing accounts
+        if account.get('billing', {}).get('is_consolidated', False):
+            continue
+            
+        status = account.get('status', {}).get('level', '').lower()
+        
+        # Apply status filter if requested
+        if filter_status:
+            if status in ['unknown', 'red']:
+                filtered_accounts.append((
+                    account.get('owner_id'),
+                    account.get('id'),
+                    account.get('name')
+                ))
+        else:
+            filtered_accounts.append((
+                account.get('owner_id'),
+                account.get('id'),
+                account.get('name')
+            ))
     
-    print([acc[0] for acc in unique_accounts])  # Print only unique owner IDs
-    print(f"Total unique accounts retrieved: {len(unique_accounts)}")
-    
-    return list(unique_accounts)
+    print(f"\nFound {len(filtered_accounts)} accounts matching criteria")
+    print("Account IDs:", [acc[0] for acc in filtered_accounts])
+    return filtered_accounts
 
 def put_arn(bearer_token, client_api_id, external_id, accounts):
     """Updates AWS accounts with an IAM role ARN, skipping payer accounts."""
@@ -108,8 +130,28 @@ if __name__ == "__main__":
         print("Missing required environment variables. Please set BEARER_TOKEN, CLIENT_API_ID, and EXTERNAL_ID in the .env file.")
         exit(1)
     
-    accounts = get_all_accounts(BEARER_TOKEN, CLIENT_API_ID)
-    if accounts:
-        put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts)
-    else:
-        print("No accounts retrieved. Exiting.")
+    while True:
+        print("\n=== CloudHealth Account Configuration Tool ===")
+        print("1. Run on all accounts (excluding consolidated billing)")
+        print("2. Run on filtered accounts (Status: UNKNOWN or RED)")
+        print("\nPlease enter your choice (1 or 2):")
+        
+        choice = input().strip()
+        
+        if choice not in ['1', '2']:
+            print("\nInvalid input! Please enter either 1 or 2.")
+            continue
+        
+        filter_status = (choice == '2')
+        accounts = get_all_accounts(BEARER_TOKEN, CLIENT_API_ID, filter_status)
+        
+        if accounts:
+            print(f"\nProcessing {len(accounts)} accounts...")
+            put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts)
+        else:
+            print("No accounts retrieved. Please check your filters and try again.")
+        
+        print("\nWould you like to run again? (y/n):")
+        if input().strip().lower() != 'y':
+            print("Exiting...")
+            break
