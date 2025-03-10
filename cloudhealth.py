@@ -2,12 +2,27 @@ import requests
 import json
 import os
 from dotenv import load_dotenv
+from pathlib import Path
+
+# Get the directory containing the script
+script_dir = Path(__file__).resolve().parent
+env_path = script_dir / '.env'
+
+print(f"\n=== Environment File Debug ===")
+print(f"Looking for .env file at: {env_path}")
+print(f"File exists: {env_path.exists()}")
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(env_path)
+
+print("\n=== Raw Environment Variables ===")
+print(f"BEARER_TOKEN value length: {os.getenv('BEARER_TOKEN', '')}")
+print(f"CLIENT_API_ID value length: {os.getenv('CLIENT_API_ID', '')}")
+print(f"EXTERNAL_ID value length: {os.getenv('EXTERNAL_ID', '')}")
+print(f"PAYER_ACCOUNTS raw value: {os.getenv('PAYER_ACCOUNTS', '')}")
 
 # Debug prints
-print("\n=== Environment Variables Debug ===")
+print("\n=== Environment Variables Status ===")
 print(f"BEARER_TOKEN: {'[SET]' if os.getenv('BEARER_TOKEN') else '[NOT SET]'}")
 print(f"CLIENT_API_ID: {'[SET]' if os.getenv('CLIENT_API_ID') else '[NOT SET]'}")
 print(f"EXTERNAL_ID: {'[SET]' if os.getenv('EXTERNAL_ID') else '[NOT SET]'}")
