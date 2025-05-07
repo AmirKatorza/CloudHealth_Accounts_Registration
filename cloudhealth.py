@@ -13,23 +13,15 @@ print(f"Looking for .env file at: {env_path}")
 print(f"File exists: {env_path.exists()}")
 
 # Load environment variables from .env file
-load_dotenv(env_path)
+load_dotenv(env_path, override=True)  # Added override=True to ensure values are loaded
 
 print("\n=== Raw Environment Variables ===")
-print(f"BEARER_TOKEN value length: {os.getenv('BEARER_TOKEN', '')}")
-print(f"CLIENT_API_ID value length: {os.getenv('CLIENT_API_ID', '')}")
-print(f"EXTERNAL_ID value length: {os.getenv('EXTERNAL_ID', '')}")
-print(f"PAYER_ACCOUNTS raw value: {os.getenv('PAYER_ACCOUNTS', '')}")
-
-# Debug prints
-print("\n=== Environment Variables Status ===")
-print(f"BEARER_TOKEN: {'[SET]' if os.getenv('BEARER_TOKEN') else '[NOT SET]'}")
-print(f"CLIENT_API_ID: {'[SET]' if os.getenv('CLIENT_API_ID') else '[NOT SET]'}")
-print(f"EXTERNAL_ID: {'[SET]' if os.getenv('EXTERNAL_ID') else '[NOT SET]'}")
-print(f"PAYER_ACCOUNTS: {'[SET]' if os.getenv('PAYER_ACCOUNTS') else '[NOT SET]'}")
-print(f"ROLE_TEMPLATE: {os.getenv('ROLE_TEMPLATE', '[using default]')}")
-print(f"ROLE_NAME: {os.getenv('ROLE_NAME', '[using default]')}")
-print("================================\n")
+print(f"BEARER_TOKEN: {os.getenv('BEARER_TOKEN')}")
+print(f"CLIENT_API_ID: {os.getenv('CLIENT_API_ID')}")
+print(f"EXTERNAL_ID: {os.getenv('EXTERNAL_ID')}")
+print(f"PAYER_ACCOUNTS: {os.getenv('PAYER_ACCOUNTS')}")
+print(f"ROLE_TEMPLATE: {os.getenv('ROLE_TEMPLATE')}")
+print(f"ROLE_NAME: {os.getenv('ROLE_NAME')}")
 
 # Load sensitive information from environment variables
 BEARER_TOKEN = os.getenv("BEARER_TOKEN", "")
@@ -38,6 +30,14 @@ EXTERNAL_ID = os.getenv("EXTERNAL_ID", "")
 PAYER_ACCOUNTS = os.getenv("PAYER_ACCOUNTS", "").split(",") if os.getenv("PAYER_ACCOUNTS") else []
 ROLE_TEMPLATE = os.getenv("ROLE_TEMPLATE", "arn:aws:iam::{owner_id}:role/{role_name}")
 ROLE_NAME = os.getenv("ROLE_NAME", "CLDZE-CloudHealth_Role")
+
+print("\n=== Loaded Variables ===")
+print(f"BEARER_TOKEN: {BEARER_TOKEN}")
+print(f"CLIENT_API_ID: {CLIENT_API_ID}")
+print(f"EXTERNAL_ID: {EXTERNAL_ID}")
+print(f"PAYER_ACCOUNTS: {PAYER_ACCOUNTS}")
+print(f"ROLE_TEMPLATE: {ROLE_TEMPLATE}")
+print(f"ROLE_NAME: {ROLE_NAME}")
 
 def get_all_accounts(bearer_token, client_api_id, filter_status=False):
     """Retrieves AWS accounts for the given client API ID, handling pagination.
