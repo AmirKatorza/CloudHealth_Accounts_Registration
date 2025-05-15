@@ -1,15 +1,16 @@
 # CloudHealth AWS Account Configuration Tool
 
-This tool automates the process of configuring AWS accounts in CloudHealth by setting up IAM roles and authentication for multiple accounts. It provides an interactive menu to either process all accounts or focus on problematic accounts that need attention.
+This tool automates the process of configuring AWS accounts in CloudHealth by setting up IAM roles and authentication for multiple accounts. It provides an interactive menu to either process all accounts, focus on problematic accounts, or de-register accounts from CloudHealth.
 
 ## Features
 
 - Interactive menu for choosing processing options
 - Automatic pagination for handling large numbers of accounts
 - Filtering options for targeting specific account statuses
-- Automatic exclusion of consolidated billing accounts
+- Automatic exclusion of consolidated billing accounts (except for de-registration)
 - Detailed output and progress tracking
 - Error handling and retry options
+- Account de-registration functionality
 
 ## Prerequisites
 
@@ -59,7 +60,7 @@ ROLE_NAME=CLDZE-CloudHealth_Role  # Optional
 - `BEARER_TOKEN`: Your CloudHealth API authentication token
 - `CLIENT_API_ID`: Your CloudHealth Client API ID
 - `EXTERNAL_ID`: The External ID used for cross-account IAM role authentication
-- `PAYER_ACCOUNTS`: Comma-separated list of AWS account IDs that are payer accounts (these will be skipped during processing)
+- `PAYER_ACCOUNTS`: Comma-separated list of AWS account IDs that are payer accounts (these will be skipped during normal operations)
 - `ROLE_TEMPLATE`: (Optional) Template for the IAM role ARN. Default: "arn:aws:iam::{owner_id}:role/{role_name}"
 - `ROLE_NAME`: (Optional) Name of the IAM role to be used. Default: "CLDZE-CloudHealth_Role"
 
@@ -78,6 +79,7 @@ python cloudhealth.py
 3. Choose your processing option from the interactive menu:
    - Option 1: Process all accounts (excluding consolidated billing accounts)
    - Option 2: Process only accounts with status 'UNKNOWN' or 'RED' (excluding consolidated billing accounts)
+   - Option 3: De-register all accounts (including consolidated billing accounts)
 
 ### Processing Options
 
@@ -90,6 +92,12 @@ python cloudhealth.py
 - Only processes accounts with status 'UNKNOWN' or 'RED'
 - Automatically excludes consolidated billing accounts
 - Useful for focusing on problematic accounts that need attention
+
+#### Option 3: De-register Accounts
+- Processes ALL accounts in CloudHealth (including consolidated billing)
+- Uses hardcoded role name "CLDZE-CloudHealth_Role_XXX"
+- Includes payer accounts in the process
+- Useful for bulk de-registration of accounts
 
 ### Script Behavior
 
@@ -125,14 +133,19 @@ The script provides detailed output including:
    - Verify the CLIENT_API_ID is correct
 
 3. If accounts are skipped:
-   - Check if they are in the PAYER_ACCOUNTS list
+   - Check if they are in the PAYER_ACCOUNTS list (for normal operations)
    - Verify their status in CloudHealth console
-   - Confirm if they are consolidated billing accounts (these are always skipped)
+   - Confirm if they are consolidated billing accounts (for normal operations)
 
 4. If no accounts are found:
    - When using Option 2, verify that accounts have the correct status (UNKNOWN or RED)
-   - Confirm that the accounts are not consolidated billing accounts
+   - For normal operations, confirm that the accounts are not consolidated billing accounts
    - Check the CloudHealth console for account status
+
+5. For de-registration issues:
+   - Verify that the hardcoded role name "CLDZE-CloudHealth_Role_XXX" exists in your AWS accounts
+   - Check if you have the necessary permissions to update all accounts
+   - Ensure the external ID is correct for all accounts
 
 ## Security Notes
 
@@ -140,6 +153,7 @@ The script provides detailed output including:
 - Keep your BEARER_TOKEN and EXTERNAL_ID secure
 - Regularly rotate your credentials
 - Use appropriate IAM role permissions
+- Be cautious when using the de-registration option as it affects all accounts
 
 ## Contributing
 

@@ -30,6 +30,7 @@ EXTERNAL_ID = os.getenv("EXTERNAL_ID", "")
 PAYER_ACCOUNTS = os.getenv("PAYER_ACCOUNTS", "").split(",") if os.getenv("PAYER_ACCOUNTS") else []
 ROLE_TEMPLATE = os.getenv("ROLE_TEMPLATE", "arn:aws:iam::{owner_id}:role/{role_name}")
 ROLE_NAME = os.getenv("ROLE_NAME", "CLDZE-CloudHealth_Role")
+DEREGISTER_ROLE_NAME = "CLDZE-CloudHealth_Role_XXX"  # Hardcoded role name for de-registration
 
 print("\n=== Loaded Variables ===")
 print(f"BEARER_TOKEN: {BEARER_TOKEN}")
@@ -39,13 +40,14 @@ print(f"PAYER_ACCOUNTS: {PAYER_ACCOUNTS}")
 print(f"ROLE_TEMPLATE: {ROLE_TEMPLATE}")
 print(f"ROLE_NAME: {ROLE_NAME}")
 
-def get_all_accounts(bearer_token, client_api_id, filter_status=False):
+def get_all_accounts(bearer_token, client_api_id, filter_status=False, include_all=False):
     """Retrieves AWS accounts for the given client API ID, handling pagination.
     
     Args:
         bearer_token (str): CloudHealth API bearer token
         client_api_id (str): Client API ID
         filter_status (bool): If True, only return accounts with 'unknown' or 'red' status
+        include_all (bool): If True, include all accounts without any filtering
     """
     url = f'https://chapi.cloudhealthtech.com/v1/aws_accounts?client_api_id={client_api_id}'
     headers = {
@@ -77,35 +79,43 @@ def get_all_accounts(bearer_token, client_api_id, filter_status=False):
     # Filter accounts based on criteria
     filtered_accounts = []
     for account in all_accounts:
-        # Skip consolidated billing accounts
-        if account.get('billing', {}).get('is_consolidated', False):
-            continue
-            
-        status = account.get('status', {}).get('level', '').lower()
-        
-        # Apply status filter if requested
-        if filter_status:
-            if status in ['unknown', 'red']:
-                filtered_accounts.append((
-                    account.get('owner_id'),
-                    account.get('id'),
-                    account.get('name')
-                ))
-        else:
+        if include_all:
+            # Include all accounts for de-registration
             filtered_accounts.append((
                 account.get('owner_id'),
                 account.get('id'),
                 account.get('name')
             ))
+        else:
+            # Skip consolidated billing accounts for normal operations
+            if account.get('billing', {}).get('is_consolidated', False):
+                continue
+                
+            status = account.get('status', {}).get('level', '').lower()
+            
+            # Apply status filter if requested
+            if filter_status:
+                if status in ['unknown', 'red']:
+                    filtered_accounts.append((
+                        account.get('owner_id'),
+                        account.get('id'),
+                        account.get('name')
+                    ))
+            else:
+                filtered_accounts.append((
+                    account.get('owner_id'),
+                    account.get('id'),
+                    account.get('name')
+                ))
     
     print(f"\nFound {len(filtered_accounts)} accounts matching criteria")
     print("Account IDs:", [acc[0] for acc in filtered_accounts])
     return filtered_accounts
 
-def put_arn(bearer_token, client_api_id, external_id, accounts):
-    """Updates AWS accounts with an IAM role ARN, skipping payer accounts."""
-    for owner_id, id, name in accounts:  # Adjusted unpacking here
-        if owner_id in PAYER_ACCOUNTS:
+def put_arn(bearer_token, client_api_id, external_id, accounts, is_deregister=False):
+    """Updates AWS accounts with an IAM role ARN, skipping payer accounts unless deregistering."""
+    for owner_id, id, name in accounts:
+        if not is_deregister and owner_id in PAYER_ACCOUNTS:
             print(f"Skipping payer account: {owner_id}")
             continue
         
@@ -121,7 +131,8 @@ def put_arn(bearer_token, client_api_id, external_id, accounts):
             'Accept': 'application/json'
         }
         
-        assume_role_arn = ROLE_TEMPLATE.format(owner_id=owner_id, role_name=ROLE_NAME)
+        role_name = DEREGISTER_ROLE_NAME if is_deregister else ROLE_NAME
+        assume_role_arn = ROLE_TEMPLATE.format(owner_id=owner_id, role_name=role_name)
         
         data = {
             "name": name,
@@ -149,22 +160,32 @@ if __name__ == "__main__":
         print("\n=== CloudHealth Account Configuration Tool ===")
         print("1. Run on all accounts (excluding consolidated billing)")
         print("2. Run on filtered accounts (Status: UNKNOWN or RED)")
-        print("\nPlease enter your choice (1 or 2):")
+        print("3. De-register all accounts (including consolidated billing)")
+        print("\nPlease enter your choice (1, 2, or 3):")
         
         choice = input().strip()
         
-        if choice not in ['1', '2']:
-            print("\nInvalid input! Please enter either 1 or 2.")
+        if choice not in ['1', '2', '3']:
+            print("\nInvalid input! Please enter either 1, 2, or 3.")
             continue
         
-        filter_status = (choice == '2')
-        accounts = get_all_accounts(BEARER_TOKEN, CLIENT_API_ID, filter_status)
-        
-        if accounts:
-            print(f"\nProcessing {len(accounts)} accounts...")
-            put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts)
+        if choice == '3':
+            # De-register all accounts
+            accounts = get_all_accounts(BEARER_TOKEN, CLIENT_API_ID, include_all=True)
+            if accounts:
+                print(f"\nProcessing {len(accounts)} accounts for de-registration...")
+                put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts, is_deregister=True)
+            else:
+                print("No accounts retrieved. Please check your connection and try again.")
         else:
-            print("No accounts retrieved. Please check your filters and try again.")
+            # Normal operation
+            filter_status = (choice == '2')
+            accounts = get_all_accounts(BEARER_TOKEN, CLIENT_API_ID, filter_status)
+            if accounts:
+                print(f"\nProcessing {len(accounts)} accounts...")
+                put_arn(BEARER_TOKEN, CLIENT_API_ID, EXTERNAL_ID, accounts)
+            else:
+                print("No accounts retrieved. Please check your filters and try again.")
         
         print("\nWould you like to run again? (y/n):")
         if input().strip().lower() != 'y':
